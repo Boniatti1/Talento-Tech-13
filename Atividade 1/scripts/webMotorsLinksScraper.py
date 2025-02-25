@@ -1,49 +1,45 @@
-from playwright.sync_api import sync_playwright
-from time import sleep
+import requests
 import pathlib
 import json
 
-with open("cookies.json", "r") as f:
-    cookies = json.load(f)
+PATH = pathlib.Path(__file__).parent
+WEBMOTORS_DATA = PATH / "webmotors_data"
 
-for cookie in cookies:
-    cookie["url"] = "https://webmotors.com"
+PER_PAGE = 800
+MIN_YEAR = 2000
+MIN_PRICE = 5000
+MAX_PRICE = 20000
 
-with sync_playwright() as p:
-    browser = p.firefox.launch(headless=False)
+price_intervals = [
+    (1000, 20000),
+    (20001, 40000),
+    (40001, 60000),
+    (60001, 80000),
+    (80001, 100000),
+    (100001, 150000),
+    (150001, 200000),
+    (200001, 250000),
+    (250000, 9999999),
+]
 
-    intervals = [(2000 + 4 * i, 2005 + 4 * i) for i in range(1, 2)]
-    context = browser.new_context()
-    context.add_cookies(cookies=cookies)
-    page = context.new_page()
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+}
 
-    elements = []
-    for interval in intervals:
-        a, b = interval
+for interval in price_intervals:
+    MIN_PRICE, MAX_PRICE = interval
+    url = f"https://www.webmotors.com.br/api/search/car?displayPerPage={PER_PAGE}&actualPage=1&showMenu=true&showCount=true&showBreadCrumb=true&order=1&url=https:%2F%2Fwww.webmotors.com.br%2Fcarros-usados%2Festoque%2Fde.{MIN_YEAR}%3Ftipoveiculo%3Dcarros-usados%26anode%3D{MIN_YEAR}%26precode%3D{MIN_PRICE}%26precoate%3D{MAX_PRICE}%26lkid%3D1000%26page%3D1&mediaZeroKm=false"
+    try:
+        response = requests.get(url, headers=HEADERS)
+        print(f"Acessando a url: {url}")
+        if response.status_code != 200:
+            raise requests.RequestException(f"Código de erro: {response.status_code}")
 
-        # for index in range(1,15):
-        for index in range(1, 2):
-            try:
-                
-                page.goto(
-                    f"https://www.webmotors.com.br/carros-usados/estoque/de.{a}/ate.{b}?tipoveiculo=carros-usados&anode=2000&anoate=2004&lkid=1000&page={index}"
-                )
-                sleep(8)
-                links = page.locator("._Link_70j0p_83").all()
-                for link in links:
-                    elements.append(link.get_attribute("href"))
+        with open(
+            WEBMOTORS_DATA / f"{MIN_PRICE}-{MAX_PRICE}.json", "w", encoding="utf-8"
+        ) as f:
+            json.dump(response.json(), f, ensure_ascii=False)
 
-            except Exception as e:
-                print("=====================")
-                print(
-                    f"Erro na url https://www.webmotors.com.br/carros-usados/estoque/de.{a}/ate.{b}?tipoveiculo=carros-usados&anode=2000&anoate=2004&lkid=1000&page={index}"
-                )
-                print(e)
-                print("=====================")
-
-            finally:
-                context.close()
-
-
-for e in elements:
-    print(e)
+    except Exception as e:
+        print(f"Erro: {e}")
