@@ -5,7 +5,7 @@ import json
 PATH = pathlib.Path(__file__).parent
 WEBMOTORS_DATA = PATH / "webmotors_data"
 
-PER_PAGE = 800
+PER_PAGE = 1500
 MIN_YEAR = 2000
 MIN_PRICE = 5000
 MAX_PRICE = 20000
